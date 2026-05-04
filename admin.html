@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Prophet's Dashboard | Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-slate-100 font-sans">
+
+    <div id="auth-gate" class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-white p-8 rounded-2xl shadow-2xl border-t-8 border-[#001f3f] w-full max-w-md">
+            <div class="text-center mb-6">
+                <h2 class="text-2xl font-bold text-[#001f3f]">Admin Access</h2>
+                <p class="text-gray-500 text-sm">Sign in to manage counseling sessions.</p>
+            </div>
+            
+            <input type="email" id="email" placeholder="Email Address" class="w-full mb-3 p-3 border rounded-lg outline-none focus:ring-2 focus:ring-[#001f3f]">
+            <input type="password" id="password" placeholder="Secure Password" class="w-full mb-4 p-3 border rounded-lg outline-none focus:ring-2 focus:ring-[#001f3f]">
+            
+            <div class="space-y-3">
+                <button onclick="handleLogin()" class="w-full bg-[#001f3f] text-white py-3 rounded-lg font-bold hover:bg-blue-900 transition">Login</button>
+                <button onclick="handleSignup()" class="w-full border border-[#001f3f] text-[#001f3f] py-3 rounded-lg font-bold hover:bg-blue-50 transition">Create New Admin</button>
+                <div class="relative flex py-3 items-center">
+                    <div class="flex-grow border-t border-gray-300"></div>
+                    <span class="flex-shrink mx-4 text-gray-400 text-xs">OR</span>
+                    <div class="flex-grow border-t border-gray-300"></div>
+                </div>
+                <button onclick="handleGoogleLogin()" class="w-full bg-white border border-gray-300 py-3 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-gray-50">
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/action/google.svg" width="18"> Continue with Google
+                </button>
+            </div>
+            <p id="error-msg" class="text-red-500 mt-4 text-xs hidden text-center font-semibold"></p>
+        </div>
+    </div>
+
+    <div id="dashboard-view" class="hidden min-h-screen">
+        <nav class="bg-[#001f3f] p-4 text-white flex justify-between items-center shadow-lg sticky top-0 z-10">
+            <h1 class="font-bold text-sm md:text-base tracking-widest uppercase">Prophet E. Hove <span class="text-[#D4AF37]">Admin</span></h1>
+            <div class="flex items-center gap-3">
+                <span id="user-display" class="hidden md:inline text-xs opacity-70"></span>
+                <button onclick="handleLogout()" class="bg-red-600 px-3 py-1.5 rounded text-xs font-bold hover:bg-red-700">Logout</button>
+            </div>
+        </nav>
+
+        <main class="p-4 md:p-8 max-w-6xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-6 gap-4">
+                <div>
+                    <h2 class="text-3xl font-extrabold text-[#001f3f]">Member Requests</h2>
+                    <p class="text-gray-500">Live data rail from the public portal.</p>
+                </div>
+                <button onclick="exportToCSV()" class="bg-green-600 text-white px-5 py-2 rounded-lg text-sm font-bold shadow hover:bg-green-700">Download Excel (CSV)</button>
+            </div>
+            
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead class="bg-slate-50 border-b border-gray-200 text-xs text-gray-400 uppercase tracking-wider font-bold">
+                            <tr>
+                                <th class="p-4">Member Info</th>
+                                <th class="p-4">Date/Time</th>
+                                <th class="p-4">Status</th>
+                                <th class="p-4 text-right">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="bookings-table" class="divide-y divide-gray-100 text-sm">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // --- 1. FIREBASE CONFIG (Paste your specific config here) ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD7SdkOjKfadJpysHXSJKO3UGxw5mR4NZM",
+  authDomain: "pastor-e-hove-counseling.firebaseapp.com",
+  projectId: "pastor-e-hove-counseling",
+  storageBucket: "pastor-e-hove-counseling.firebasestorage.app",
+  messagingSenderId: "468533115816",
+  appId: "1:468533115816:web:84c3c0c104344f28ed7b9d",
+  measurementId: "G-V5V85JL57Y
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        // --- 2. AUTH LOGIC GATE ---
+        auth.onAuthStateChanged(user => {
+            const authGate = document.getElementById('auth-gate');
+            const dashView = document.getElementById('dashboard-view');
+            
+            if (user) {
+                authGate.classList.add('hidden');
+                dashView.classList.remove('hidden');
+                document.getElementById('user-display').innerText = user.email;
+                loadLiveBookings();
+            } else {
+                authGate.classList.remove('hidden');
+                dashView.classList.add('hidden');
+            }
+        });
+
+        // --- 3. AUTH ACTIONS ---
+        async function handleLogin() {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('password').value;
+            try { await auth.signInWithEmailAndPassword(e, p); } 
+            catch (err) { displayErr(err.message); }
+        }
+
+        async function handleSignup() {
+            const e = document.getElementById('email').value;
+            const p = document.getElementById('password').value;
+            try { 
+                const res = await auth.createUserWithEmailAndPassword(e, p);
+                await res.user.sendEmailVerification();
+                alert("Account created! Please check your email to verify before continuing.");
+            } catch (err) { displayErr(err.message); }
+        }
+
+        async function handleGoogleLogin() {
+            const provider = new firebase.auth.GoogleAuthProvider();
+            try { await auth.signInWithPopup(provider); }
+            catch (err) { displayErr(err.message); }
+        }
+
+        function handleLogout() { auth.signOut(); }
+
+        function displayErr(msg) {
+            const el = document.getElementById('error-msg');
+            el.innerText = msg;
+            el.classList.remove('hidden');
+        }
+
+        // --- 4. DATA RAIL (FIRESTORE) ---
+        function loadLiveBookings() {
+            db.collection("bookings").orderBy("createdAt", "desc").onSnapshot(snapshot => {
+                const table = document.getElementById('bookings-table');
+                table.innerHTML = "";
+                snapshot.forEach(doc => {
+                    const b = doc.data();
+                    const statusClass = b.status === 'confirmed' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700';
+                    table.innerHTML += `
+                        <tr class="hover:bg-slate-50">
+                            <td class="p-4">
+                                <div class="font-bold text-[#001f3f]">${b.name}</div>
+                                <div class="text-xs text-gray-400">${b.phone}</div>
+                            </td>
+                            <td class="p-4 text-gray-600">${b.date}<br><span class="text-xs font-bold">${b.time}</span></td>
+                            <td class="p-4">
+                                <span class="px-2 py-1 rounded-full text-[10px] font-black uppercase ${statusClass}">${b.status}</span>
+                            </td>
+                            <td class="p-4 text-right">
+                                <button onclick="updateStatus('${doc.id}', 'confirmed')" class="text-blue-900 font-bold hover:underline text-xs">Approve</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        async function updateStatus(id, newStatus) {
+            await db.collection("bookings").doc(id).update({ status: newStatus });
+        }
+
+        function exportToCSV() {
+            alert("Exporting logic linked to CSV file...");
+            // This would trigger the CSV download function
+        }
+    </script>
+</body>
+</html>
