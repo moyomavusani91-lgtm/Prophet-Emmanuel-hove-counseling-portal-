@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Book Counseling | Prophet E. Hove</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+</head>
+<body class="bg-gray-50 font-sans">
+
+    <nav class="bg-[#001f3f] p-6 text-white text-center shadow-lg">
+        <h1 class="text-xl font-bold tracking-widest uppercase">Prophet Emmanuel <span class="text-[#D4AF37]">Hove</span></h1>
+        <p class="text-xs opacity-75 mt-1">Counseling & Spiritual Guidance Portal</p>
+    </nav>
+
+    <section class="max-w-md mx-auto mt-10 p-6 bg-white rounded-2xl shadow-xl border-t-8 border-[#D4AF37] mb-10">
+        <div class="text-center mb-8">
+            <h2 class="text-2xl font-bold text-[#001f3f]">Request a Session</h2>
+            <p class="text-gray-500 text-sm">Please fill in your details accurately.</p>
+        </div>
+
+        <form id="bookingForm" class="space-y-5">
+            <div>
+                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Full Name</label>
+                <input type="text" id="userName" required placeholder="Enter your name" 
+                class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#001f3f] outline-none">
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Phone Number</label>
+                <input type="tel" id="userPhone" required placeholder="077..." 
+                class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#001f3f] outline-none">
+            </div>
+
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Date</label>
+                    <input type="date" id="bookingDate" required class="w-full p-3 border border-gray-200 rounded-lg outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Time</label>
+                    <select id="bookingTime" required class="w-full p-3 border border-gray-200 rounded-lg outline-none bg-white">
+                        <option value="10:00">10:00 AM</option>
+                        <option value="11:00">11:00 AM</option>
+                        <option value="14:00">02:00 PM</option>
+                        <option value="15:00">03:00 PM</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-bold text-gray-600 uppercase mb-1">Reason for Session</label>
+                <textarea id="bookingReason" rows="3" placeholder="Briefly explain your request..." 
+                class="w-full p-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#001f3f] outline-none"></textarea>
+            </div>
+
+            <button type="submit" class="w-full bg-[#001f3f] text-white py-4 rounded-xl font-bold hover:bg-blue-900 transition-all shadow-lg active:scale-95">
+                Confirm Booking Request
+            </button>
+        </form>
+
+        <p id="successMsg" class="hidden mt-6 text-center text-green-600 font-medium bg-green-50 p-3 rounded-lg">
+            ✓ Request sent! The Prophet's office will contact you.
+        </p>
+    </section>
+
+    <script>
+        // 1. YOUR FIREBASE CONFIG (Paste from Firebase Console)
+        const firebaseConfig = {
+            apiKey: "AIzaSyD7SdkOjKfadJpysHXSJKO3UGxw5mR4NZM",
+            authDomain: "pastor-e-hove-counseling.firebaseapp.com",
+            projectId: "pastor-e-hove-counseling",
+            storageBucket: "pastor-e-hove-counseling.firebasestorage.app",
+            messagingSenderId: "468533115816",
+            appId: "1:468533115816:web:84c3c0c104344f28ed7b9d"
+          measurementId: "G-V5V85JL57Y"
+        };
+
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.firestore();
+
+        // 2. FORM SUBMISSION LOGIC
+        const bookingForm = document.getElementById('bookingForm');
+        
+        bookingForm.addEventListener('submit', async (e) => {
+            e.preventDefault(); // Stop page from refreshing
+
+            // Gather the data from fields
+            const newBooking = {
+                name: document.getElementById('userName').value,
+                phone: document.getElementById('userPhone').value,
+                date: document.getElementById('bookingDate').value,
+                time: document.getElementById('bookingTime').value,
+                reason: document.getElementById('bookingReason').value,
+                status: "pending", // Default status for the Dashboard
+                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+
+            try {
+                // Save to the "bookings" collection in Firebase
+                await db.collection("bookings").add(newBooking);
+                
+                // Show success and reset form
+                bookingForm.classList.add('hidden');
+                document.getElementById('successMsg').classList.remove('hidden');
+            } catch (error) {
+                alert("Error sending booking: " + error.message);
+            }
+        });
+    </script>
+
+</body>
+</html>
+
